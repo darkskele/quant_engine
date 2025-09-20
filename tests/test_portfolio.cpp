@@ -108,6 +108,18 @@ TEST(PortfolioTest, FlipsShortToLong)
     EXPECT_NEAR_EQ(pf.realized_pnl(), -100.0); // 10*(210-200)
 }
 
+TEST(PortfolioTest, AppliesCommission)
+{
+    portfolio_manager pf(1000.0, 0.01);                 // 1% commission
+    pf.on_fill(fill_event{"BTCUSD", "1", 1, 1, true, 100.0});
+
+    double trade_value = 100.0;
+    double commission  = trade_value * 0.01; // 1.0
+
+    EXPECT_NEAR(pf.position("BTCUSD").avg_price, 100.0, 1e-9);
+    EXPECT_NEAR(pf.cash_balance(), 1000.0 - trade_value - commission, 1e-9);
+}
+
 TEST(PortfolioTest, UnrealizedPnLTracksMarket)
 {
     portfolio_manager pf(2000.0);
