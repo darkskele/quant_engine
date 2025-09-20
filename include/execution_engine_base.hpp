@@ -78,7 +78,7 @@ namespace engine::orders
             if (st.filled_qty_ > 0)
             {
                 st.avg_fill_price_ =
-                    ((st.avg_fill_price_ * (st.filled_qty_ - filled_qty)) + (exec_price * filled_qty)) / static_cast<double>(st.filled_qty_);
+                    ((st.avg_fill_price_ * static_cast<double>(st.filled_qty_ - filled_qty)) + (exec_price * static_cast<double>(filled_qty))) / static_cast<double>(st.filled_qty_);
             }
             else
             {

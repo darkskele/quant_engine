@@ -22,6 +22,13 @@ target_link_libraries(engine_tests
         GTest::gtest_main
 )
 
+# Relax warnings just for test files
+target_compile_options(engine_tests PRIVATE
+    -Wall -Wextra
+    -Wno-missing-field-initializers
+    -Wno-conversion
+)
+
 # Register tests
 include(GoogleTest)
 gtest_discover_tests(engine_tests)

@@ -22,7 +22,7 @@ namespace engine::portfolio
         }
 
         // Commission
-        double trade_value = effective_price * fill.filled_qty_;
+        double trade_value = effective_price * static_cast<double>(fill.filled_qty_);
         double commission = trade_value * commission_rate_;
         cash_ -= commission; // commission always reduces cash
 
@@ -40,19 +40,19 @@ namespace engine::portfolio
         if ((pos.quantity >= 0 && signed_qty > 0) || // long + buy more
             (pos.quantity <= 0 && signed_qty < 0))   // short + sell more
         {
-            double old_cost = pos.avg_price * std::abs(pos.quantity);
-            double new_cost = effective_price * std::abs(signed_qty);
+            double old_cost = pos.avg_price * static_cast<double>(std::abs(pos.quantity));
+            double new_cost = effective_price * static_cast<double>(std::abs(signed_qty));
             pos.quantity += signed_qty;
-            pos.avg_price = (old_cost + new_cost) / std::abs(pos.quantity);
+            pos.avg_price = (old_cost + new_cost) / static_cast<double>(std::abs(pos.quantity));
         }
         // Closing or flipping
         else
         {
-            int closing_qty = std::min(std::abs(pos.quantity), std::abs(signed_qty));
-            double pnl = closing_qty * (effective_price - pos.avg_price) * (pos.quantity > 0 ? 1 : -1);
+            int64_t closing_qty = std::min(std::abs(pos.quantity), std::abs(signed_qty));
+            double pnl = static_cast<double>(closing_qty) * (effective_price - pos.avg_price) * static_cast<double>(pos.quantity > 0 ? 1 : -1);
             realized_pnl_ += pnl;
 
-            int old_qty = pos.quantity;
+            int64_t old_qty = pos.quantity;
             pos.quantity += signed_qty;
 
             // If flipped sides, reset cost basis to trade price
@@ -87,7 +87,7 @@ namespace engine::portfolio
             if (it != market_prices_.end())
             {
                 double mkt_price = it->second;
-                total += pos.quantity * (mkt_price - pos.avg_price);
+                total += static_cast<double>(pos.quantity) * (mkt_price - pos.avg_price);
             }
         }
         return total;
@@ -101,12 +101,12 @@ namespace engine::portfolio
     double portfolio_manager::total_equity() const noexcept
     {
         double value = cash_;
-        for (const auto [symbol, pos] : positions_)
+        for (const auto &[symbol, pos] : positions_)
         {
             auto it = market_prices_.find(symbol);
             if (it != market_prices_.end())
             {
-                value += pos.quantity * it->second;
+                value += static_cast<double>(pos.quantity) * it->second;
             }
         }
         return value;

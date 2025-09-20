@@ -36,7 +36,7 @@ struct DummyStrategy
     bool saw_market = false;
     bool saw_signal = false;
 
-    void on_market(const market_event &ev, event_queue &q)
+    void on_market(const market_event &, event_queue &q)
     {
         saw_market = true;
         // Push a fake signal after market

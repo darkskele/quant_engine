@@ -207,7 +207,7 @@ namespace engine
         }
 
         /// Metrics hook, overriden by derived
-        void on_loop_metrics(size_t tick_count, std::chrono::nanoseconds duration)
+        void on_loop_metrics(size_t, std::chrono::nanoseconds)
         {
             // empty
         }

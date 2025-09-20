@@ -4,10 +4,10 @@
 
 namespace engine::events
 {
-    void event_queue::push(event event)
+    void event_queue::push(event ev)
     {
         // Push to queue
-        queue_.push(std::move(event));
+        queue_.push(std::move(ev));
     }
 
     event event_queue::pop()
@@ -18,10 +18,10 @@ namespace engine::events
         }
 
         // Move from front
-        auto event = std::move(queue_.front());
+        auto ev = std::move(queue_.front());
         // Pop and return
         queue_.pop();
-        return event; // NRVO
+        return ev; // NRVO
     }
 
     bool event_queue::empty() const

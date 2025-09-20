@@ -15,9 +15,9 @@ namespace engine::events
     public:
         /**
          * @brief Push a new event onto the queue.
-         * @param event A unique pointer to an event object.
+         * @param ev A unique pointer to an event object.
          */
-        void push(event event);
+        void push(event ev);
 
         /**
          * @brief Pop the next event from the queue.

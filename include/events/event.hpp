@@ -51,7 +51,7 @@ namespace engine::events
         int64_t order_qty_;
         bool is_buy_;
         double fill_price_;
-        std::chrono::system_clock::time_point timestamp;
+        std::chrono::system_clock::time_point timestamp{std::chrono::system_clock::now()};
     };
 
     /**

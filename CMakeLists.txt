@@ -11,8 +11,28 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
-# Ensure debug flags
+# no optimization, full symbols
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+
+# Release flags: maximum optimization for GCC
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG")
+
+# optimized but keeps debug symbols (for perf profiling)
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -march=native -g -DNDEBUG")
+
+# Enable strict warnings (GCC only)
+add_compile_options(
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+    -Wcast-align
+    -Wnull-dereference
+    -Wdouble-promotion
+    -Wformat=2
+)
 
 # Engine library
 add_library(quant_engine
@@ -20,7 +40,6 @@ add_library(quant_engine
     src/portfolio/portfolio_manager.cpp
 )
 
-# Public headers
 target_include_directories(quant_engine
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include

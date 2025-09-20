@@ -5,15 +5,25 @@
       "name": "Debug engine_tests",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/tests/engine_tests",
+      "program": "${workspaceFolder}/build/debug/tests/engine_tests",
       "args": [],
-      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
+      "stopAtEntry": false,
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb",
-      "preLaunchTask": "CMake: configure and build"
+      "preLaunchTask": "Build Debug"
+    },
+    {
+      "name": "Release engine_tests",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/release/tests/engine_tests",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "Build Release"
     }
   ]
 }
