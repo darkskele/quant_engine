@@ -48,39 +48,55 @@ namespace engine
         void run()
         {
             auto &self = derived();
+            size_t tick_count = 0;
 
             // Check engine is running
             while (!self.should_stop())
             {
-                // Pause loop
-                while (is_paused())
-                {
-                    std::this_thread::yield();
-                    if (self.should_stop())
-                        return;
-                }
+                auto loop_start = std::chrono::high_resolution_clock::now();
 
-                // Poll streamer for next market event
-                auto ev = poll_streamer();
-                if (!ev.has_value())
+                try
                 {
-                    // Decides to continue
-                    if (!self.handle_no_event())
+                    // Pause loop
+                    while (is_paused())
                     {
-                        break;
+                        std::this_thread::yield();
+                        if (self.should_stop())
+                            return;
+                    }
+
+                    // Poll streamer for next market event
+                    if (auto ev = poll_streamer())
+                    {
+                        ++tick_count;
+                        handle_event(*ev);
+                    }
+                    else
+                    {
+                        // Decides to continue
+                        if (!self.handle_no_event())
+                        {
+                            break;
+                        }
+                    }
+
+                    // Drain queue
+                    while (!queue_.empty())
+                    {
+                        auto sub_ev = queue_.pop();
+                        handle_event(sub_ev);
                     }
                 }
-                else
+                catch (const std::exception &ex)
                 {
-                    handle_event(*ev);
+                    self.on_error(ex); // default rethrow
                 }
 
-                // Drain queue
-                while (!queue_.empty())
-                {
-                    auto sub_ev = queue_.pop();
-                    handle_event(sub_ev);
-                }
+                // Log metrics
+                auto loop_end = std::chrono::high_resolution_clock::now();
+                self.on_loop_metrics(
+                    tick_count,
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(loop_end - loop_start));
             }
         }
 
@@ -182,6 +198,18 @@ namespace engine
                 {
                     portfolio_manager_.on_fill(e);
                 } }, ev);
+        }
+
+        /// Default error handler
+        void on_error(const std::exception &ex)
+        {
+            throw ex; // rethrow by default
+        }
+
+        /// Metrics hook, overriden by derived
+        void on_loop_metrics(size_t tick_count, std::chrono::nanoseconds duration)
+        {
+            // empty
         }
 
         std::atomic<bool> paused_; ///< Atomic pause flag.
