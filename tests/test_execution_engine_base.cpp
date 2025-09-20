@@ -3,6 +3,7 @@
 #include "events/event.hpp"
 #include "events/event_queue.hpp"
 
+using namespace engine;
 using namespace engine::orders;
 using namespace engine::events;
 

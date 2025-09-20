@@ -7,6 +7,36 @@
 
 namespace engine::events
 {
+    /**
+     * @brief Enum representing order types.
+     */
+    enum class order_type
+    {
+        Market,     ///< Execute immediately at best available price
+        Limit,      ///< Post to order book; executes at or better than limit price
+        StopMarket, ///< Triggered stop; executes as market order
+        StopLimit   ///< Triggered stop; executes as limit order
+    };
+
+    /**
+     * @brief Enum representing order flags.
+     */
+    enum order_flags : uint8_t
+    {
+        None = 0,
+        IOC = 1 << 0,       ///< Immediate-Or-Cancel
+        FOK = 1 << 1,       ///< Fill-Or-Kill
+        PostOnly = 1 << 2,  ///< Must post to book (maker only)
+        ReduceOnly = 1 << 3 ///< Must reduce position, not increase
+    };
+
+    /**
+     * @brief Inlined or operator for order flags.
+     */
+    inline order_flags operator|(order_flags a, order_flags b)
+    {
+        return static_cast<order_flags>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+    }
 
     /**
      * @brief event representing new market data.
@@ -33,11 +63,14 @@ namespace engine::events
      */
     struct order_event
     {
-        std::string symbol_;
-        std::string order_id_;
-        int64_t quantity_;
-        bool is_buy_;
-        double price_;
+        std::string symbol_;                                                                ///< Symbol being traded
+        std::string order_id_;                                                              ///< Unique order identifier
+        int64_t quantity_;                                                                  ///< Order quantity (positive int)
+        bool is_buy_;                                                                       ///< Buy = true, Sell = false
+        double price_;                                                                      ///< Limit/stop price (ignored for pure Market)
+        order_type type_{order_type::Market};                                               ///< Market, Limit, Stop
+        events::order_flags flags_{order_flags::None};                                      ///< Execution modifiers
+        std::chrono::system_clock::time_point timestamp_{std::chrono::system_clock::now()}; ///< Time order was placed
     };
 
     /**
@@ -52,6 +85,7 @@ namespace engine::events
         bool is_buy_;
         double fill_price_;
         std::chrono::system_clock::time_point timestamp{std::chrono::system_clock::now()};
+        order_event originating_order_{};
     };
 
     /**

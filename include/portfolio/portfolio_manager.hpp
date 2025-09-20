@@ -71,6 +71,14 @@ namespace engine::portfolio
          */
         const std::vector<engine::events::fill_event> &trade_log() const noexcept;
 
+        /**
+         * @brief Get last market price.
+         *
+         * @param symbol Market to check.
+         * @return If symbol doesn't exist will return 0.0.
+         */
+        double last_price(const std::string &symbol) const noexcept;
+
     private:
         double cash_;                                               ///< Available cash balance in the account (after trades and fees).
         double realized_pnl_;                                       ///< Total realized profit and loss across all positions.

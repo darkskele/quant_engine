@@ -6,7 +6,7 @@ namespace engine::portfolio
 {
 
     portfolio_manager::portfolio_manager(double starting_cash, double commission_rate)
-        : cash_(starting_cash), commission_rate_(commission_rate), realized_pnl_(0) {}
+        : cash_(starting_cash), realized_pnl_(0), commission_rate_(commission_rate) {}
 
     void portfolio_manager::on_fill(const engine::events::fill_event &fill) noexcept
     {
@@ -17,8 +17,8 @@ namespace engine::portfolio
         // Commission
         double trade_value = fill.fill_price_ * static_cast<double>(fill.filled_qty_);
         double commission = trade_value * commission_rate_;
-        cash_ -= commission;          // commission always reduces cash
-        realized_pnl_ -= commission;  // reduce realized PnL as well
+        cash_ -= commission;         // commission always reduces cash
+        realized_pnl_ -= commission; // reduce realized PnL as well
 
         // Cash for trade adjustment
         if (fill.is_buy_)
@@ -121,6 +121,12 @@ namespace engine::portfolio
     const std::vector<engine::events::fill_event> &portfolio_manager::trade_log() const noexcept
     {
         return trade_log_;
+    }
+
+    double portfolio_manager::last_price(const std::string &symbol) const noexcept
+    {
+        auto it = market_prices_.find(symbol);
+        return (it != market_prices_.end()) ? it->second : 0.0;
     }
 
 } // namespace engine::portfolio

@@ -6,7 +6,7 @@
 
 #include <unordered_map>
 
-namespace engine::orders
+namespace engine
 {
 
     /**
@@ -36,7 +36,7 @@ namespace engine::orders
          * @return const order_state* Pointer to the order state if found,
          *         or nullptr if no such order exists.
          */
-        const order_state *get_order(const std::string &order_id) const noexcept
+        const engine::orders::order_state *get_order(const std::string &order_id) const noexcept
         {
             auto it = orders_.find(order_id);
             return (it != orders_.end()) ? &it->second : nullptr;
@@ -97,12 +97,13 @@ namespace engine::orders
                 order.quantity_, // total order size
                 order.is_buy_,
                 exec_price,
-                time_stamp};
+                time_stamp,
+                order};
 
             queue.push(std::move(fill));
         }
 
-        std::unordered_map<std::string, order_state> orders_; ///< Order state tracking.
+        std::unordered_map<std::string, engine::orders::order_state> orders_; ///< Order state tracking.
 
     private:
         /// Internal getter for derived.
@@ -112,4 +113,4 @@ namespace engine::orders
         }
     };
 
-} // namespace engine::orders
+} // namespace engine

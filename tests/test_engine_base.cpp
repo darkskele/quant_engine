@@ -61,6 +61,11 @@ struct DummyExec
         saw_order = true;
         q.push(fill_event{order.symbol_, "1", order.quantity_, order.quantity_, order.is_buy_, order.price_});
     }
+
+    void on_market(const market_event &, event_queue &)
+    {
+        // empty
+    }
 };
 
 // Minimal derived engine

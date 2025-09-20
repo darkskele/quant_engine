@@ -183,8 +183,14 @@ namespace engine
 
                 if constexpr(std::is_same_v<T, events::market_event>)
                 {
-                    strategy_.on_market(e, queue_);
+                    // Update portfolio with new market price
                     portfolio_manager_.on_market(e.symbol_, e.price_);
+
+                    // Let execution handler re check resting orders
+                    exec_handler_.on_market(e, queue_);
+
+                    // Strategy reacts to the market
+                    strategy_.on_market(e, queue_);
                 }
                 else if constexpr(std::is_same_v<T, events::signal_event>)
                 {
