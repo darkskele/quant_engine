@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <variant>
+#include <chrono>
 
 namespace engine::events
 {
@@ -33,7 +34,8 @@ namespace engine::events
     struct order_event
     {
         std::string symbol_;
-        int quantity_;
+        std::string order_id_;
+        int64_t quantity_;
         bool is_buy_;
         double price_;
     };
@@ -44,9 +46,12 @@ namespace engine::events
     struct fill_event
     {
         std::string symbol_;
-        int64_t quantity_;
+        std::string order_id_;
+        int64_t filled_qty_;
+        int64_t order_qty_;
         bool is_buy_;
         double fill_price_;
+        std::chrono::system_clock::time_point timestamp;
     };
 
     /**

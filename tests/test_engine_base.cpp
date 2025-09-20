@@ -47,7 +47,7 @@ struct DummyStrategy
     {
         saw_signal = true;
         // Push a dummy order to keep the pipeline flowing
-        q.push(order_event{"BTCUSD", 1, true, 100.0});
+        q.push(order_event{"BTCUSD", "1", 1, true, 100.0});
     }
 };
 
@@ -59,7 +59,7 @@ struct DummyExec
     void on_order(const order_event &order, event_queue &q)
     {
         saw_order = true;
-        q.push(fill_event{order.symbol_, order.quantity_, order.is_buy_, order.price_});
+        q.push(fill_event{order.symbol_, "1", order.quantity_, order.quantity_, order.is_buy_, order.price_});
     }
 };
 

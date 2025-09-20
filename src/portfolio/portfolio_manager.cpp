@@ -12,7 +12,7 @@ namespace engine::portfolio
     {
         // Get new quantity
         auto &pos = positions_[fill.symbol_];
-        int64_t signed_qty = fill.is_buy_ ? fill.quantity_ : -fill.quantity_;
+        int64_t signed_qty = fill.is_buy_ ? fill.filled_qty_ : -fill.filled_qty_;
 
         // Adjust for slippage
         double effective_price = fill.fill_price_;
@@ -22,7 +22,7 @@ namespace engine::portfolio
         }
 
         // Commission
-        double trade_value = effective_price * fill.quantity_;
+        double trade_value = effective_price * fill.filled_qty_;
         double commission = trade_value * commission_rate_;
         cash_ -= commission; // commission always reduces cash
 
