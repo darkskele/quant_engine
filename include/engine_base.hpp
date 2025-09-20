@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <thread>
 
 #include "events/event.hpp"
 #include "events/event_queue.hpp"
@@ -51,6 +52,14 @@ namespace engine
             // Check engine is running
             while (!self.should_stop())
             {
+                // Pause loop
+                while (is_paused())
+                {
+                    std::this_thread::yield();
+                    if (self.should_stop())
+                        return;
+                }
+
                 // Poll streamer for next market event
                 auto ev = poll_streamer();
                 if (!ev.has_value())
@@ -91,6 +100,46 @@ namespace engine
             return portfolio_manager_;
         }
 
+        /**
+         * @brief Getter for const strategy.
+         */
+        const Strategy &strategy() const noexcept
+        {
+            return strategy_;
+        }
+
+        /**
+         * @brief Gett for const execution handler.
+         */
+        const ExecHandler &exec_handler() const noexcept
+        {
+            return exec_handler_;
+        }
+
+        /**
+         * @brief Pause streaming.
+         */
+        void pause() noexcept
+        {
+            paused_.store(true, std::memory_order_relaxed);
+        }
+
+        /**
+         * @brief Resume streaming.
+         */
+        void resume() noexcept
+        {
+            paused_.store(false, std::memory_order_relaxed);
+        }
+
+        /**
+         * @brief Get paused flag.
+         */
+        bool is_paused() const noexcept
+        {
+            return paused_.load(std::memory_order_relaxed);
+        }
+
     protected:
         /// Poll streamer and wrap into a market_event
         std::optional<events::event> poll_streamer()
@@ -98,7 +147,12 @@ namespace engine
             // Check streamer for data
             if (auto tick = streamer_.next())
             {
-                return events::market_event{*tick};
+                return events::market_event{
+                    std::move(tick->symbol),
+                    tick->price,
+                    tick->qty,
+                    tick->timestamp_ms,
+                    tick->is_buyer_match};
             }
             return std::nullopt;
         }
@@ -114,7 +168,7 @@ namespace engine
                 if constexpr(std::is_same_v<T, events::market_event>)
                 {
                     strategy_.on_market(e, queue_);
-                    portfolio_manager_.on_market(e.tick_.symbol, e.tick_.price);
+                    portfolio_manager_.on_market(e.symbol_, e.price_);
                 }
                 else if constexpr(std::is_same_v<T, events::signal_event>)
                 {
@@ -127,8 +181,10 @@ namespace engine
                 else if constexpr(std::is_same_v<T, events::fill_event>)
                 {
                     portfolio_manager_.on_fill(e);
-                } });
+                } }, ev);
         }
+
+        std::atomic<bool> paused_; ///< Atomic pause flag.
 
     private:
         /// Internal getter for derived.

@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace portfolio
+namespace engine::portfolio
 {
 
     portfolio_manager::portfolio_manager(double starting_cash, double commission_rate, double slippage_rate)
@@ -129,4 +129,4 @@ namespace portfolio
         return trade_log_;
     }
 
-} // namespace portfolio
+} // namespace engine::portfolio

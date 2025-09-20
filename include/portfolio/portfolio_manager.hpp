@@ -7,7 +7,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace portfolio
+namespace engine::portfolio
 {
 
     /**
@@ -79,7 +79,7 @@ namespace portfolio
         double slippage_rate_;                                      ///< Slippage rate to simulate execution slippage (fraction of price).
         std::unordered_map<std::string, position_state> positions_; ///< Current open positions keyed by symbol.
         std::unordered_map<std::string, double> market_prices_;     ///< Last known market price per symbol.
-        std::vector<engine::events::fill_event> trade_log_;                         ///< Log of trades across the portfolio.
+        std::vector<engine::events::fill_event> trade_log_;         ///< Log of trades across the portfolio.
     };
 
-} // namespace portfolio
+} // namespace engine::portfolio

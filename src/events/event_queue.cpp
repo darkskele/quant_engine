@@ -1,5 +1,7 @@
 #include "events/event_queue.hpp"
 
+#include <stdexcept>
+
 namespace engine::events
 {
     void event_queue::push(event event)
@@ -10,6 +12,11 @@ namespace engine::events
 
     event event_queue::pop()
     {
+        if (empty())
+        {
+            throw std::runtime_error("Queue empty!");
+        }
+
         // Move from front
         auto event = std::move(queue_.front());
         // Pop and return

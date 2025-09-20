@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace portfolio
+namespace engine::portfolio
 {
 
     /**
@@ -19,4 +19,4 @@ namespace portfolio
         int64_t quantity;    ///< Net quantity: positive for long, negative for short, zero if flat.
     };
 
-} // namespace portfolio
+} // namespace engine::portfolio

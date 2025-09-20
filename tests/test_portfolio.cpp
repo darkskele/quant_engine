@@ -3,7 +3,7 @@
 #include "events/event.hpp"
 
 using namespace engine::events;
-using namespace portfolio;
+using namespace engine::portfolio;
 
 // compare doubles with tolerance
 constexpr double EPS = 1e-9;

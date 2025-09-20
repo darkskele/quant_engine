@@ -11,6 +11,8 @@ FetchContent_MakeAvailable(googletest)
 # Define test executable
 add_executable(engine_tests
     test_portfolio.cpp
+    test_event_queue.cpp
+    test_engine_base.cpp
 )
 
 target_link_libraries(engine_tests
