@@ -22,9 +22,7 @@ namespace engine::portfolio
          * @param commission_rate % of trade notational.
          * @param slippage_rate % price adjustment.
          */
-        portfolio_manager(double starting_cash = 100000.0,
-                          double commission_rate = 0.0,
-                          double slippage_rate = 0.0);
+        portfolio_manager(double starting_cash = 100000.0);
 
         /**
          * @brief Handle a fill_event (executed trade).
@@ -75,8 +73,6 @@ namespace engine::portfolio
     private:
         double cash_;                                               ///< Available cash balance in the account (after trades and fees).
         double realized_pnl_;                                       ///< Total realized profit and loss across all positions.
-        double commission_rate_;                                    ///< Commission fee rate applied to each trade (e.g. 0.001 = 0.1%).
-        double slippage_rate_;                                      ///< Slippage rate to simulate execution slippage (fraction of price).
         std::unordered_map<std::string, position_state> positions_; ///< Current open positions keyed by symbol.
         std::unordered_map<std::string, double> market_prices_;     ///< Last known market price per symbol.
         std::vector<engine::events::fill_event> trade_log_;         ///< Log of trades across the portfolio.

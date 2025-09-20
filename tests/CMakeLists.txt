@@ -22,6 +22,8 @@ target_link_libraries(engine_tests
         GTest::gtest_main
 )
 
+target_compile_options(gtest PRIVATE -Wno-null-dereference)
+target_compile_options(gtest_main PRIVATE -Wno-null-dereference)
 # Relax warnings just for test files
 target_compile_options(engine_tests PRIVATE
     -Wall -Wextra

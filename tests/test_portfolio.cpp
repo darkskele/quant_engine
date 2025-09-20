@@ -108,16 +108,6 @@ TEST(PortfolioTest, FlipsShortToLong)
     EXPECT_NEAR_EQ(pf.realized_pnl(), -100.0); // 10*(210-200)
 }
 
-TEST(PortfolioTest, AppliesSlippageAndCommission)
-{
-    portfolio_manager pf(1000.0, 0.01, 0.05);                 // 1% commission, 5% slippage
-    pf.on_fill(fill_event{"BTCUSD", "1", 1, 1, true, 100.0}); // buy 1
-
-    // Effective price = 105.0, commission = 1.05
-    EXPECT_NEAR_EQ(pf.position("BTCUSD").avg_price, 105.0);
-    EXPECT_NEAR_EQ(pf.cash_balance(), 1000.0 - 105.0 - 1.05);
-}
-
 TEST(PortfolioTest, UnrealizedPnLTracksMarket)
 {
     portfolio_manager pf(2000.0);

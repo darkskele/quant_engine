@@ -5,8 +5,8 @@
 namespace engine::portfolio
 {
 
-    portfolio_manager::portfolio_manager(double starting_cash, double commission_rate, double slippage_rate)
-        : cash_(starting_cash), realized_pnl_(0), commission_rate_(commission_rate), slippage_rate_(slippage_rate) {}
+    portfolio_manager::portfolio_manager(double starting_cash)
+        : cash_(starting_cash), realized_pnl_(0) {}
 
     void portfolio_manager::on_fill(const engine::events::fill_event &fill) noexcept
     {
@@ -14,17 +14,7 @@ namespace engine::portfolio
         auto &pos = positions_[fill.symbol_];
         int64_t signed_qty = fill.is_buy_ ? fill.filled_qty_ : -fill.filled_qty_;
 
-        // Adjust for slippage
-        double effective_price = fill.fill_price_;
-        if (slippage_rate_ > 0.0)
-        {
-            effective_price *= (fill.is_buy_ ? (1.0 + slippage_rate_) : (1.0 - slippage_rate_));
-        }
-
-        // Commission
-        double trade_value = effective_price * static_cast<double>(fill.filled_qty_);
-        double commission = trade_value * commission_rate_;
-        cash_ -= commission; // commission always reduces cash
+        double trade_value = fill.fill_price_ * static_cast<double>(fill.filled_qty_);
 
         // Cash for trade adjustment
         if (fill.is_buy_)
@@ -41,7 +31,7 @@ namespace engine::portfolio
             (pos.quantity <= 0 && signed_qty < 0))   // short + sell more
         {
             double old_cost = pos.avg_price * static_cast<double>(std::abs(pos.quantity));
-            double new_cost = effective_price * static_cast<double>(std::abs(signed_qty));
+            double new_cost = fill.fill_price_ * static_cast<double>(std::abs(signed_qty));
             pos.quantity += signed_qty;
             pos.avg_price = (old_cost + new_cost) / static_cast<double>(std::abs(pos.quantity));
         }
@@ -49,7 +39,7 @@ namespace engine::portfolio
         else
         {
             int64_t closing_qty = std::min(std::abs(pos.quantity), std::abs(signed_qty));
-            double pnl = static_cast<double>(closing_qty) * (effective_price - pos.avg_price) * static_cast<double>(pos.quantity > 0 ? 1 : -1);
+            double pnl = static_cast<double>(closing_qty) * (fill.fill_price_ - pos.avg_price) * static_cast<double>(pos.quantity > 0 ? 1 : -1);
             realized_pnl_ += pnl;
 
             int64_t old_qty = pos.quantity;
@@ -63,7 +53,7 @@ namespace engine::portfolio
             else if ((old_qty > 0 && pos.quantity < 0) || (old_qty < 0 && pos.quantity > 0))
             {
                 // flipped sides
-                pos.avg_price = effective_price;
+                pos.avg_price = fill.fill_price_;
             }
         }
 
