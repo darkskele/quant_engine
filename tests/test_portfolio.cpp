@@ -124,7 +124,7 @@ TEST(PortfolioTest, UnrealizedPnLTracksMarket)
 {
     portfolio_manager pf(2000.0);
     pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0});
-    pf.on_market("BTCUSD", 110.0); // mark to market
+    pf.on_market("BTCUSD", 110.0, 1); // mark to market
 
     EXPECT_NEAR_EQ(pf.unrealized_pnl(), 100.0); // 10*(110-100)
     EXPECT_NEAR_EQ(pf.total_equity(), 2100.0);  // cash=1000 + pos=1100

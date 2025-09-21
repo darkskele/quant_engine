@@ -32,6 +32,11 @@ namespace engine::events
          */
         bool empty() const;
 
+        /**
+         * @brief Get size of current queue.
+         */
+        size_t size() const noexcept;
+
     private:
         std::queue<event> queue_;
     };

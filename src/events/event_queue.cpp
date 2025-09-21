@@ -29,4 +29,9 @@ namespace engine::events
         return queue_.empty();
     }
 
+    size_t event_queue::size() const noexcept
+    {
+        return queue_.size();
+    }
+
 } // namespace engine::events

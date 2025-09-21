@@ -35,8 +35,9 @@ namespace engine::portfolio
          * @brief Handle a MarketEvent (price update).
          * @param symbol The asset symbol (e.g., BTCUSD).
          * @param price The current market price of the asset.
+         * @param price The current market quantity of the asset.
          */
-        void on_market(const std::string &symbol, double price) noexcept;
+        void on_market(const std::string &symbol, double price, double qty) noexcept;
 
         /**
          * @brief Get current total equity (cash + value of holdings).
@@ -79,12 +80,21 @@ namespace engine::portfolio
          */
         double last_price(const std::string &symbol) const noexcept;
 
+        /**
+         * @brief Get last market quantity.
+         *
+         * @param symbol Market to check.
+         * @return If symbol doesn't exist will return 0.0.
+         */
+        double last_quantity(const std::string &symbol) const noexcept;
+
     private:
         double cash_;                                               ///< Available cash balance in the account (after trades and fees).
         double realized_pnl_;                                       ///< Total realized profit and loss across all positions.
         double commission_rate_;                                    ///< Commission fee rate applied to each trade (e.g. 0.001 = 0.1%).
         std::unordered_map<std::string, position_state> positions_; ///< Current open positions keyed by symbol.
         std::unordered_map<std::string, double> market_prices_;     ///< Last known market price per symbol.
+        std::unordered_map<std::string, double> market_quantities;  ///< Last known market quantity per symbol.
         std::vector<engine::events::fill_event> trade_log_;         ///< Log of trades across the portfolio.
     };
 

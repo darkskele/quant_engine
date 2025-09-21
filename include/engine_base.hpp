@@ -184,7 +184,7 @@ namespace engine
                 if constexpr(std::is_same_v<T, events::market_event>)
                 {
                     // Update portfolio with new market price
-                    portfolio_manager_.on_market(e.symbol_, e.price_);
+                    portfolio_manager_.on_market(e.symbol_, e.price_, e.qty_);
 
                     // Let execution handler re check resting orders
                     exec_handler_.on_market(e, queue_);

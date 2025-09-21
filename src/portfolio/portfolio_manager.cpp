@@ -65,10 +65,11 @@ namespace engine::portfolio
         trade_log_.push_back(fill);
     }
 
-    void portfolio_manager::on_market(const std::string &symbol, double price) noexcept
+    void portfolio_manager::on_market(const std::string &symbol, double price, double qty) noexcept
     {
         // Track market price
         market_prices_[symbol] = price;
+        market_quantities[symbol] = qty;
     }
 
     double portfolio_manager::unrealized_pnl() const noexcept
@@ -127,6 +128,12 @@ namespace engine::portfolio
     {
         auto it = market_prices_.find(symbol);
         return (it != market_prices_.end()) ? it->second : 0.0;
+    }
+
+    double portfolio_manager::last_quantity(const std::string &symbol) const noexcept
+    {
+        auto it = market_quantities.find(symbol);
+        return (it != market_quantities.end()) ? it->second : 0.0;
     }
 
 } // namespace engine::portfolio
