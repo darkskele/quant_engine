@@ -69,8 +69,9 @@ namespace engine::events
         bool is_buy_;                                                                       ///< Buy = true, Sell = false
         double price_;                                                                      ///< Limit/stop price (ignored for pure Market)
         order_type type_{order_type::Market};                                               ///< Market, Limit, Stop
-        events::order_flags flags_{order_flags::None};                                      ///< Execution modifiers
+        order_flags flags_{order_flags::None};                                              ///< Execution modifiers
         std::chrono::system_clock::time_point timestamp_{std::chrono::system_clock::now()}; ///< Time order was placed
+        market_event trigger_{};                                                            ///< Triggering market event
     };
 
     /**
