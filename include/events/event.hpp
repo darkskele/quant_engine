@@ -90,8 +90,18 @@ namespace engine::events
     };
 
     /**
+     * @brief Event representing a cancelled order.
+     */
+    struct cancel_event
+    {
+        order_event originating_order_;
+        std::string reason_;
+        std::chrono::system_clock::time_point timestamp{std::chrono::system_clock::now()};
+    };
+
+    /**
      * @brief Unified event type using std::variant.
      */
-    using event = std::variant<market_event, signal_event, order_event, fill_event>;
+    using event = std::variant<market_event, signal_event, order_event, fill_event, cancel_event>;
 
 } // namespace engine::events

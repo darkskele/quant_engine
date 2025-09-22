@@ -203,7 +203,13 @@ namespace engine
                 else if constexpr(std::is_same_v<T, events::fill_event>)
                 {
                     portfolio_manager_.on_fill(e);
-                } }, ev);
+                }
+                else if constexpr(std::is_same_v<T, events::cancel_event>)
+                {
+                    portfolio_manager_.on_cancel(e);
+                    strategy_.on_cancel(e);
+                }
+            }, ev);
         }
 
         /// Default error handler

@@ -49,6 +49,11 @@ struct DummyStrategy
         // Push a dummy order to keep the pipeline flowing
         q.push(order_event{"BTCUSD", "1", 1, true, 100.0});
     }
+
+    void on_cancel(const cancel_event&)
+    {
+        // empty
+    }
 };
 
 // Dummy execution handler: records orders

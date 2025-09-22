@@ -6,7 +6,7 @@ namespace engine::portfolio
 {
 
     portfolio_manager::portfolio_manager(double starting_cash, double commission_rate)
-        : cash_(starting_cash), realized_pnl_(0), commission_rate_(commission_rate) {}
+        : cash_(starting_cash), realized_pnl_(0), commission_rate_(commission_rate), cancel_count_(0) {}
 
     void portfolio_manager::on_fill(const engine::events::fill_event &fill) noexcept
     {
@@ -70,6 +70,13 @@ namespace engine::portfolio
         // Track market price
         market_prices_[symbol] = price;
         market_quantities[symbol] = qty;
+    }
+
+    void portfolio_manager::on_cancel(const engine::events::cancel_event &cancel) noexcept
+    {
+        // Track cancelled orders
+        cancel_count_++;
+        cancelled_order_ids_.push_back(cancel.originating_order_.order_id_);
     }
 
     double portfolio_manager::unrealized_pnl() const noexcept

@@ -141,3 +141,19 @@ TEST(PortfolioTest, TradeLogRecordsFills)
     EXPECT_TRUE(pf.trade_log()[0].is_buy_);
     EXPECT_FALSE(pf.trade_log()[1].is_buy_);
 }
+
+TEST(PortfolioTest, TracksCancels) {
+    engine::portfolio::portfolio_manager pf(10000.0);
+
+    order_event order{"BTCUSD", "ord_cancel", 5, true, 100.0, order_type::Limit};
+    cancel_event cancel{
+        order,
+        "IOC remainder cancelled"};
+
+    pf.on_cancel(cancel);
+
+    EXPECT_EQ(pf.cancel_count(), 1);
+    const auto ids = pf.cancelled_order_ids();
+    ASSERT_EQ(ids.size(), 1);
+    EXPECT_EQ(ids[0], "ord_cancel");
+}

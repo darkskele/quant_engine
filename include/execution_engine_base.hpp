@@ -103,6 +103,27 @@ namespace engine
             queue.push(std::move(fill));
         }
 
+        /**
+         * @brief Emits a cancel event for orders cancelled by IOC or FOK rules.
+         *
+         * @param order Order to cancel.
+         * @param reason Reason for cancel.
+         * @param queue Queue to add event to.
+         */
+        void emit_cancel(const events::order_event &order, const std::string &reason, events::event_queue &queue) noexcept
+        {
+            // Make order inactive
+            auto &st = orders_[order.order_id_];
+            st.is_active_ = false;
+
+            // Emit cancel
+            events::cancel_event cancel{
+                order,
+                reason};
+
+            queue.push(std::move(cancel));
+        }
+
         std::unordered_map<std::string, engine::orders::order_state> orders_; ///< Order state tracking.
 
     private:
