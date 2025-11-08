@@ -1,6 +1,7 @@
 #pragma once
 
 #include "orders/order_state.hpp"
+#include "orders/order_queue.hpp"
 #include "events/event.hpp"
 #include "events/event_queue.hpp"
 
@@ -38,8 +39,8 @@ namespace engine
          */
         const engine::orders::order_state *get_order(const std::string &order_id) const noexcept
         {
-            auto it = orders_.find(order_id);
-            return (it != orders_.end()) ? &it->second : nullptr;
+            auto ord = orders_.get(order_id);
+            return ord;
         }
 
     protected:
@@ -62,32 +63,30 @@ namespace engine
                        std::chrono::system_clock::time_point time_stamp = std::chrono::system_clock::now())
         {
             // Update order state
-            auto &st = orders_[order.order_id_];
-            if (st.order_.order_id_.empty())
+            auto st = orders_.get(order.order_id_);
+            if (!st)
             {
                 // First time we've seen this order
-                st.order_ = order;
-                st.filled_qty_ = 0;
-                st.avg_fill_price_ = 0.0;
-                st.is_active_ = true;
+                orders_.emplace({order});
+                st = orders_.get(order.order_id_);
             }
 
             // Update fill progress
-            st.filled_qty_ += filled_qty;
+            st->filled_qty_ += filled_qty;
 
-            if (st.filled_qty_ > 0)
+            if (st->filled_qty_ > 0)
             {
-                st.avg_fill_price_ =
-                    ((st.avg_fill_price_ * static_cast<double>(st.filled_qty_ - filled_qty)) + (exec_price * static_cast<double>(filled_qty))) / static_cast<double>(st.filled_qty_);
+                st->avg_fill_price_ =
+                    ((st->avg_fill_price_ * static_cast<double>(st->filled_qty_ - filled_qty)) + (exec_price * static_cast<double>(filled_qty))) / static_cast<double>(st->filled_qty_);
             }
             else
             {
-                st.avg_fill_price_ = 0.0; // guard for zero division
+                st->avg_fill_price_ = 0.0; // guard for zero division
             }
 
-            if (st.filled_qty_ >= st.order_.quantity_)
+            if (st->filled_qty_ >= st->order_.quantity_)
             {
-                st.is_active_ = false;
+                orders_.inactive(st->order_.order_id_);
             }
 
             events::fill_event fill{
@@ -97,8 +96,8 @@ namespace engine
                 order.quantity_, // total order size
                 order.is_buy_,
                 exec_price,
-                time_stamp,
-                order};
+                order,
+                time_stamp};
 
             queue.push(std::move(fill));
         }
@@ -113,8 +112,7 @@ namespace engine
         void emit_cancel(const events::order_event &order, const std::string &reason, events::event_queue &queue) noexcept
         {
             // Make order inactive
-            auto &st = orders_[order.order_id_];
-            st.is_active_ = false;
+            orders_.inactive(order.order_id_);
 
             // Emit cancel
             events::cancel_event cancel{
@@ -124,7 +122,7 @@ namespace engine
             queue.push(std::move(cancel));
         }
 
-        std::unordered_map<std::string, engine::orders::order_state> orders_; ///< Order state tracking.
+        orders::order_queue orders_; ///< Order state tracking.
 
     private:
         /// Internal getter for derived.

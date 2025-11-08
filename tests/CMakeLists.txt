@@ -9,6 +9,7 @@ add_executable(engine_unit_tests
 target_link_libraries(engine_unit_tests
     PRIVATE
         quant_engine
+        streamer
         GTest::gtest_main
 )
 

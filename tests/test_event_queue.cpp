@@ -4,6 +4,16 @@
 
 using namespace engine::events;
 
+static order_event order_ev{"BTCUSD",
+                     "order",
+                     2,
+                     false,
+                     200.0,
+                     order_type::Market,
+                     order_flags::None,
+                     std::chrono::system_clock::now(),
+                     market_event{"BTCUSD", 200.0, 2, 1, false}};
+
 TEST(EventQueueTest, InitiallyEmpty)
 {
     event_queue q;
@@ -13,7 +23,7 @@ TEST(EventQueueTest, InitiallyEmpty)
 TEST(EventQueueTest, PushThenPopSingleEvent)
 {
     event_queue q;
-    fill_event f{"BTCUSD", "1", 1, 1, true, 100.0};
+    fill_event f{"BTCUSD", "1", 1, 1, true, 100.0, order_ev};
 
     q.push(f);
     EXPECT_FALSE(q.empty());
@@ -34,8 +44,8 @@ TEST(EventQueueTest, MultiplePushMaintainsFIFO)
 {
     event_queue q;
 
-    order_event o1{"BTCUSD", "1", 5, true, 101.0};
-    order_event o2{"BTCUSD", "2", 10, false, 99.5};
+    order_event o1{"BTCUSD", "1", 5, true, 101.0, order_type::Limit, order_flags::FOK};
+    order_event o2{"BTCUSD", "2", 10, false, 99.5, order_type::Limit, order_flags::FOK};
 
     q.push(o1);
     q.push(o2);
@@ -63,7 +73,7 @@ TEST(EventQueueTest, PushDifferentEventTypes)
 
     signal_event s;
     market_event m{"BTCUSD", 100.5, 10.0, 123456789, false};
-    fill_event f{"BTCUSD", "2", 2, 2, false, 101.2};
+    fill_event f{"BTCUSD", "2", 2, 2, false, 101.2, order_ev};
 
     q.push(s);
     q.push(m);
@@ -83,7 +93,7 @@ TEST(EventQueueTest, PushDifferentEventTypes)
 TEST(EventQueueTest, MovesEventsCorrectly)
 {
     event_queue q;
-    fill_event f{"BTCUSD", "1", 3, 3, true, 102.5};
+    fill_event f{"BTCUSD", "1", 3, 3, true, 102.5, order_ev};
 
     q.push(std::move(f));
     auto ev = q.pop();

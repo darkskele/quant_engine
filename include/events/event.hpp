@@ -59,19 +59,43 @@ namespace engine::events
     };
 
     /**
-     * @brief event representing an order submitted to the market.
+     * @brief Event representing an order submitted to the market.
+     *
+     * Immutable: once created, these fields never change.
      */
-    struct order_event
+    struct order_event final
     {
-        std::string symbol_;                                                                ///< Symbol being traded
-        std::string order_id_;                                                              ///< Unique order identifier
-        int64_t quantity_;                                                                  ///< Order quantity (positive int)
-        bool is_buy_;                                                                       ///< Buy = true, Sell = false
-        double price_;                                                                      ///< Limit/stop price (ignored for pure Market)
-        order_type type_{order_type::Market};                                               ///< Market, Limit, Stop
-        order_flags flags_{order_flags::None};                                              ///< Execution modifiers
-        std::chrono::system_clock::time_point timestamp_{std::chrono::system_clock::now()}; ///< Time order was placed
-        market_event trigger_{};                                                            ///< Triggering market event
+        const std::string symbol_;                              ///< Symbol being traded
+        const std::string order_id_;                            ///< Unique order identifier
+        const int64_t quantity_;                                ///< Total requested quantity
+        const bool is_buy_;                                     ///< Buy = true, Sell = false
+        const double price_;                                    ///< Limit/stop price (ignored for pure Market)
+        const order_type type_;                                 ///< Market, Limit, Stop, StopLimit
+        const order_flags flags_;                               ///< Execution modifiers (IOC, FOK, GTC, etc.)
+        const std::chrono::system_clock::time_point timestamp_; ///< Time order was placed
+        const market_event trigger_;                            ///< Market event that spawned the order (traceability)
+
+        /// @brief Construct an immutable order event.
+        order_event(std::string symbol,
+                    std::string order_id,
+                    int64_t quantity,
+                    bool is_buy,
+                    double price,
+                    order_type type,
+                    order_flags flags,
+                    std::chrono::system_clock::time_point ts = std::chrono::system_clock::now(),
+                    market_event trigger = {})
+            : symbol_(std::move(symbol)),
+              order_id_(std::move(order_id)),
+              quantity_(quantity),
+              is_buy_(is_buy),
+              price_(price),
+              type_(type),
+              flags_(flags),
+              timestamp_(ts),
+              trigger_(std::move(trigger))
+        {
+        }
     };
 
     /**
@@ -85,8 +109,8 @@ namespace engine::events
         int64_t order_qty_;
         bool is_buy_;
         double fill_price_;
+        order_event originating_order_;
         std::chrono::system_clock::time_point timestamp{std::chrono::system_clock::now()};
-        order_event originating_order_{};
     };
 
     /**

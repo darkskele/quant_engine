@@ -9,6 +9,16 @@ using namespace engine::portfolio;
 constexpr double EPS = 1e-9;
 #define EXPECT_NEAR_EQ(val, expected) EXPECT_NEAR((val), (expected), EPS)
 
+static order_event order{"BTCUSD",
+                     "order",
+                     2,
+                     false,
+                     200.0,
+                     order_type::Market,
+                     order_flags::None,
+                     std::chrono::system_clock::now(),
+                     market_event{"BTCUSD", 200.0, 2, 1, false}};
+
 TEST(PortfolioTest, InitialState)
 {
     portfolio_manager pf(100000.0);
@@ -23,7 +33,7 @@ TEST(PortfolioTest, InitialState)
 TEST(PortfolioTest, OpensLongCorrectly)
 {
     portfolio_manager pf(1000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0}); // buy 10 @ 100
+    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0, order}); // buy 10 @ 100
 
     EXPECT_NEAR_EQ(pf.cash_balance(), 0.0);
     EXPECT_EQ(pf.position("BTCUSD").quantity, 10);
@@ -34,8 +44,8 @@ TEST(PortfolioTest, OpensLongCorrectly)
 TEST(PortfolioTest, AddsToLongAveragesPrice)
 {
     portfolio_manager pf(3000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0});
-    pf.on_fill(fill_event{"BTCUSD", "2", 10, 10, true, 120.0}); // avg to 110
+    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0, order});
+    pf.on_fill(fill_event{"BTCUSD", "2", 10, 10, true, 120.0, order}); // avg to 110
 
     EXPECT_EQ(pf.position("BTCUSD").quantity, 20);
     EXPECT_NEAR_EQ(pf.position("BTCUSD").avg_price, 110.0);
@@ -46,8 +56,8 @@ TEST(PortfolioTest, AddsToLongAveragesPrice)
 TEST(PortfolioTest, ReducesLongRealizesPnL)
 {
     portfolio_manager pf(5000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 20, 20, true, 100.0}); // long 20 @ 100
-    pf.on_fill(fill_event{"BTCUSD", "2", 5, 5, false, 130.0});  // sell 5 @ 130
+    pf.on_fill(fill_event{"BTCUSD", "1", 20, 20, true, 100.0, order}); // long 20 @ 100
+    pf.on_fill(fill_event{"BTCUSD", "2", 5, 5, false, 130.0, order});  // sell 5 @ 130
 
     EXPECT_EQ(pf.position("BTCUSD").quantity, 15);
     EXPECT_NEAR_EQ(pf.position("BTCUSD").avg_price, 100.0);
@@ -57,8 +67,8 @@ TEST(PortfolioTest, ReducesLongRealizesPnL)
 TEST(PortfolioTest, ClosesLongResetsPosition)
 {
     portfolio_manager pf(2000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 20, 20, true, 100.0});
-    pf.on_fill(fill_event{"BTCUSD", "2", 20, 20, false, 90.0}); // sell all
+    pf.on_fill(fill_event{"BTCUSD", "1", 20, 20, true, 100.0, order});
+    pf.on_fill(fill_event{"BTCUSD", "2", 20, 20, false, 90.0, order}); // sell all
 
     EXPECT_EQ(pf.position("BTCUSD").quantity, 0);
     EXPECT_NEAR_EQ(pf.position("BTCUSD").avg_price, 0.0);
@@ -68,8 +78,8 @@ TEST(PortfolioTest, ClosesLongResetsPosition)
 TEST(PortfolioTest, FlipsLongToShort)
 {
     portfolio_manager pf(2000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0});
-    pf.on_fill(fill_event{"BTCUSD", "2", 15, 15, false, 110.0}); // sell 15
+    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0, order});
+    pf.on_fill(fill_event{"BTCUSD", "2", 15, 15, false, 110.0, order}); // sell 15
 
     EXPECT_EQ(pf.position("BTCUSD").quantity, -5); // now short 5
     EXPECT_NEAR_EQ(pf.position("BTCUSD").avg_price, 110.0);
@@ -79,7 +89,7 @@ TEST(PortfolioTest, FlipsLongToShort)
 TEST(PortfolioTest, OpensShortCorrectly)
 {
     portfolio_manager pf(2000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, false, 200.0}); // short 10 @ 200
+    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, false, 200.0, order}); // short 10 @ 200
 
     EXPECT_EQ(pf.position("BTCUSD").quantity, -10);
     EXPECT_NEAR_EQ(pf.position("BTCUSD").avg_price, 200.0);
@@ -89,8 +99,8 @@ TEST(PortfolioTest, OpensShortCorrectly)
 TEST(PortfolioTest, CoversShortPartially)
 {
     portfolio_manager pf(4000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, false, 200.0}); // short 10
-    pf.on_fill(fill_event{"BTCUSD", "2", 5, 5, true, 180.0});    // buy 5
+    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, false, 200.0, order}); // short 10
+    pf.on_fill(fill_event{"BTCUSD", "2", 5, 5, true, 180.0, order});    // buy 5
 
     EXPECT_EQ(pf.position("BTCUSD").quantity, -5);
     EXPECT_NEAR_EQ(pf.realized_pnl(), 100.0); // 5*(200-180)
@@ -100,8 +110,8 @@ TEST(PortfolioTest, CoversShortPartially)
 TEST(PortfolioTest, FlipsShortToLong)
 {
     portfolio_manager pf(4000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, false, 200.0}); // short 10
-    pf.on_fill(fill_event{"BTCUSD", "2", 15, 15, true, 210.0});  // buy 15
+    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, false, 200.0, order}); // short 10
+    pf.on_fill(fill_event{"BTCUSD", "2", 15, 15, true, 210.0, order});  // buy 15
 
     EXPECT_EQ(pf.position("BTCUSD").quantity, 5); // now long 5
     EXPECT_NEAR_EQ(pf.position("BTCUSD").avg_price, 210.0);
@@ -111,7 +121,7 @@ TEST(PortfolioTest, FlipsShortToLong)
 TEST(PortfolioTest, AppliesCommission)
 {
     portfolio_manager pf(1000.0, 0.01);                 // 1% commission
-    pf.on_fill(fill_event{"BTCUSD", "1", 1, 1, true, 100.0});
+    pf.on_fill(fill_event{"BTCUSD", "1", 1, 1, true, 100.0, order});
 
     double trade_value = 100.0;
     double commission  = trade_value * 0.01; // 1.0
@@ -123,7 +133,7 @@ TEST(PortfolioTest, AppliesCommission)
 TEST(PortfolioTest, UnrealizedPnLTracksMarket)
 {
     portfolio_manager pf(2000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0});
+    pf.on_fill(fill_event{"BTCUSD", "1", 10, 10, true, 100.0, order});
     pf.on_market("BTCUSD", 110.0, 1); // mark to market
 
     EXPECT_NEAR_EQ(pf.unrealized_pnl(), 100.0); // 10*(110-100)
@@ -133,8 +143,8 @@ TEST(PortfolioTest, UnrealizedPnLTracksMarket)
 TEST(PortfolioTest, TradeLogRecordsFills)
 {
     portfolio_manager pf(1000.0);
-    pf.on_fill(fill_event{"BTCUSD", "1", 1, 1, true, 100.0});
-    pf.on_fill(fill_event{"BTCUSD", "2", 1, 1, false, 120.0});
+    pf.on_fill(fill_event{"BTCUSD", "1", 1, 1, true, 100.0, order});
+    pf.on_fill(fill_event{"BTCUSD", "2", 1, 1, false, 120.0, order});
 
     ASSERT_EQ(pf.trade_log().size(), 2);
     EXPECT_EQ(pf.trade_log()[0].symbol_, "BTCUSD");
@@ -145,7 +155,7 @@ TEST(PortfolioTest, TradeLogRecordsFills)
 TEST(PortfolioTest, TracksCancels) {
     engine::portfolio::portfolio_manager pf(10000.0);
 
-    order_event order{"BTCUSD", "ord_cancel", 5, true, 100.0, order_type::Limit};
+    order_event order{"BTCUSD", "ord_cancel", 5, true, 100.0, order_type::Limit, order_flags::FOK};
     cancel_event cancel{
         order,
         "IOC remainder cancelled"};

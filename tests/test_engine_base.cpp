@@ -47,7 +47,7 @@ struct DummyStrategy
     {
         saw_signal = true;
         // Push a dummy order to keep the pipeline flowing
-        q.push(order_event{"BTCUSD", "1", 1, true, 100.0});
+        q.push(order_event{"BTCUSD", "1", 1, true, 100.0, order_type::Limit, order_flags::FOK});
     }
 
     void on_cancel(const cancel_event&)
@@ -55,6 +55,16 @@ struct DummyStrategy
         // empty
     }
 };
+
+static order_event order_ev{"BTCUSD",
+                     "order",
+                     2,
+                     false,
+                     200.0,
+                     order_type::Market,
+                     order_flags::None,
+                     std::chrono::system_clock::now(),
+                     market_event{"BTCUSD", 200.0, 2, 1, false}};
 
 // Dummy execution handler: records orders
 struct DummyExec
@@ -64,7 +74,7 @@ struct DummyExec
     void on_order(const order_event &order, event_queue &q)
     {
         saw_order = true;
-        q.push(fill_event{order.symbol_, "1", order.quantity_, order.quantity_, order.is_buy_, order.price_});
+        q.push(fill_event{order.symbol_, "1", order.quantity_, order.quantity_, order.is_buy_, order.price_, order_ev});
     }
 
     void on_market(const market_event &, event_queue &)

@@ -8,14 +8,22 @@ namespace engine::orders
 {
 
     /**
-     * @brief Order state for execution.
+     * @brief State of an order as it moves through execution.
+     *
+     * Holds an immutable order_event and mutable fill progress.
      */
     struct order_state
     {
-        events::order_event order_; ///< Original order.
-        int64_t filled_qty_;        ///< Cumulative filled.
-        double avg_fill_price_;     ///< Weighted avg fill price.
-        bool is_active_;            ///< Still working or fully closed.
+        const engine::events::order_event order_; ///< Immutable client order
+        int64_t filled_qty_{0};                   ///< Cumulative filled
+        double avg_fill_price_{0.0};              ///< Weighted average fill price
+
+        explicit order_state(const engine::events::order_event &order,
+                             int64_t filled = 0,
+                             double avg = 0.0)
+            : order_(order), filled_qty_(filled), avg_fill_price_(avg)
+        {
+        }
     };
 
 } // namespace engine::orders

@@ -29,7 +29,7 @@ protected:
 
     order_event make_order(std::string id, std::string symbol, int64_t qty, bool is_buy = true, double limit = 0.0)
     {
-        return order_event{symbol, id, qty, is_buy, limit};
+        return order_event{symbol, id, qty, is_buy, limit, order_type::Market, order_flags::FOK, std::chrono::system_clock::now(), market_event{}};
     }
 };
 
@@ -42,7 +42,6 @@ TEST_F(ExecutionEngineBaseTest, FirstFillInitializesState)
     ASSERT_NE(st, nullptr);
     EXPECT_EQ(st->filled_qty_, 100);
     EXPECT_DOUBLE_EQ(st->avg_fill_price_, 150.0);
-    EXPECT_FALSE(st->is_active_); // fully filled
 
     ASSERT_FALSE(queue.empty());
     auto ev = queue.pop();
@@ -66,7 +65,6 @@ TEST_F(ExecutionEngineBaseTest, MultiplePartialFillsUpdateAveragePrice)
     ASSERT_NE(st, nullptr);
     EXPECT_EQ(st->filled_qty_, 75);
     EXPECT_NEAR(st->avg_fill_price_, 100.33, 1e-2); // weighted avg
-    EXPECT_TRUE(st->is_active_);                    // still 25 left
 }
 
 TEST_F(ExecutionEngineBaseTest, FullFillMarksInactive)
@@ -79,7 +77,6 @@ TEST_F(ExecutionEngineBaseTest, FullFillMarksInactive)
     const auto *st = engine.get_order("ord3");
     ASSERT_NE(st, nullptr);
     EXPECT_EQ(st->filled_qty_, 10);
-    EXPECT_FALSE(st->is_active_); // all filled
 }
 
 TEST_F(ExecutionEngineBaseTest, SeparateOrdersTrackedIndependently)
@@ -109,7 +106,6 @@ TEST_F(ExecutionEngineBaseTest, OverFillStillMarksInactive)
     const auto *st = engine.get_order("ord6");
     ASSERT_NE(st, nullptr);
     EXPECT_EQ(st->filled_qty_, 15); // recorded as is
-    EXPECT_FALSE(st->is_active_);   // marked inactive anyway
 }
 
 TEST_F(ExecutionEngineBaseTest, ZeroQuantityFillDoesNotCrash)
@@ -122,5 +118,4 @@ TEST_F(ExecutionEngineBaseTest, ZeroQuantityFillDoesNotCrash)
     ASSERT_NE(st, nullptr);
     EXPECT_EQ(st->filled_qty_, 0);
     EXPECT_DOUBLE_EQ(st->avg_fill_price_, 0.0);
-    EXPECT_TRUE(st->is_active_); // still open
 }

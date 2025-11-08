@@ -37,12 +37,18 @@ add_compile_options(
 # Engine library
 add_library(quant_engine
     src/events/event_queue.cpp
+    src/orders/order_queue.cpp
     src/portfolio/portfolio_manager.cpp
 )
 
 target_include_directories(quant_engine
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(quant_engine
+    PUBLIC
+        streamer
 )
 
 # Enable tests
