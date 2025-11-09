@@ -5,33 +5,6 @@
 
 using namespace engine::portfolio;
 
-// Mock EventBus for testing
-class MockEventBus
-{
-public:
-    struct Order
-    {
-        uint64_t order_id;
-        uint32_t symbol_id;
-        int32_t quantity;
-        double price;
-        uint64_t timestamp_ns;
-    };
-
-    std::vector<Order> emitted_orders;
-
-    void emit_order(uint64_t order_id, uint32_t symbol_id, int32_t quantity,
-                    double price, uint64_t timestamp_ns)
-    {
-        emitted_orders.push_back({order_id, symbol_id, quantity, price, timestamp_ns});
-    }
-
-    void clear()
-    {
-        emitted_orders.clear();
-    }
-};
-
 class PortfolioManagerTest : public ::testing::Test
 {
 protected:
@@ -39,18 +12,16 @@ protected:
     static constexpr double INITIAL_CAPITAL = 1000000.0;
     static constexpr double EPSILON = 1e-9;
 
-    MockEventBus bus;
-    std::unique_ptr<PortfolioManager<MockEventBus, MAX_SYMBOLS>> pm;
+    std::unique_ptr<PortfolioManager<MAX_SYMBOLS>> pm;
 
     void SetUp() override
     {
-        pm = std::make_unique<PortfolioManager<MockEventBus, MAX_SYMBOLS>>(bus, INITIAL_CAPITAL);
+        pm = std::make_unique<PortfolioManager<MAX_SYMBOLS>>(INITIAL_CAPITAL);
     }
 
     void TearDown() override
     {
         pm.reset();
-        bus.clear();
     }
 
     // Helper to compare doubles
@@ -64,19 +35,16 @@ protected:
 TEST_F(PortfolioManagerTest, ConstructorInitializesCorrectly)
 {
     EXPECT_DOUBLE_EQ(pm->get_cash(), INITIAL_CAPITAL);
-    EXPECT_EQ(pm->get_order_count(), 0);
     EXPECT_EQ(pm->get_fill_count(), 0);
-    EXPECT_EQ(pm->get_reject_count(), 0);
     EXPECT_DOUBLE_EQ(pm->get_total_value(), INITIAL_CAPITAL);
 }
 
-// on_signal Tests
-TEST_F(PortfolioManagerTest, OnSignalValidInput)
+// can_execute Tests
+TEST_F(PortfolioManagerTest, CanExecuteValidOrder)
 {
     uint32_t symbol_id = 0;
     int32_t quantity = 100;
     double price = 50.0;
-    uint64_t timestamp = 1000;
 
     // Set reasonable risk limits
     RiskLimits risk;
@@ -85,62 +53,15 @@ TEST_F(PortfolioManagerTest, OnSignalValidInput)
     risk.max_notional_ = 100000.0;
     pm->set_risk_limit(symbol_id, risk);
 
-    pm->on_signal(symbol_id, quantity, price, timestamp);
-
-    EXPECT_EQ(pm->get_order_count(), 1);
-    EXPECT_EQ(pm->get_reject_count(), 0);
-    EXPECT_EQ(bus.emitted_orders.size(), 1);
-
-    const auto &order = bus.emitted_orders[0];
-    EXPECT_EQ(order.symbol_id, symbol_id);
-    EXPECT_EQ(order.quantity, quantity);
-    EXPECT_DOUBLE_EQ(order.price, price);
-    EXPECT_EQ(order.timestamp_ns, timestamp);
+    EXPECT_TRUE(pm->can_execute(symbol_id, quantity, price));
 }
 
-TEST_F(PortfolioManagerTest, OnSignalInvalidSymbolId)
+TEST_F(PortfolioManagerTest, CanExecuteInvalidSymbolId)
 {
-    EXPECT_THROW(
-        pm->on_signal(MAX_SYMBOLS, 100, 50.0, 1000),
-        std::out_of_range);
+    EXPECT_THROW(pm->can_execute(MAX_SYMBOLS, 100, 50.0), std::out_of_range);
 }
 
-TEST_F(PortfolioManagerTest, OnSignalNegativePrice)
-{
-    EXPECT_THROW(
-        pm->on_signal(0, 100, -50.0, 1000),
-        std::invalid_argument);
-}
-
-TEST_F(PortfolioManagerTest, OnSignalZeroPrice)
-{
-    EXPECT_THROW(
-        pm->on_signal(0, 100, 0.0, 1000),
-        std::invalid_argument);
-}
-
-TEST_F(PortfolioManagerTest, OnSignalInfinitePrice)
-{
-    EXPECT_THROW(
-        pm->on_signal(0, 100, std::numeric_limits<double>::infinity(), 1000),
-        std::invalid_argument);
-}
-
-TEST_F(PortfolioManagerTest, OnSignalNaNPrice)
-{
-    EXPECT_THROW(
-        pm->on_signal(0, 100, std::numeric_limits<double>::quiet_NaN(), 1000),
-        std::invalid_argument);
-}
-
-TEST_F(PortfolioManagerTest, OnSignalZeroQuantity)
-{
-    EXPECT_THROW(
-        pm->on_signal(0, 0, 50.0, 1000),
-        std::invalid_argument);
-}
-
-TEST_F(PortfolioManagerTest, OnSignalExceedsPositionLimit)
+TEST_F(PortfolioManagerTest, CanExecuteExceedsPositionLimit)
 {
     uint32_t symbol_id = 0;
 
@@ -150,14 +71,10 @@ TEST_F(PortfolioManagerTest, OnSignalExceedsPositionLimit)
     risk.max_notional_ = 100000.0;
     pm->set_risk_limit(symbol_id, risk);
 
-    pm->on_signal(symbol_id, 100, 50.0, 1000);
-
-    EXPECT_EQ(pm->get_order_count(), 0);
-    EXPECT_EQ(pm->get_reject_count(), 1);
-    EXPECT_EQ(bus.emitted_orders.size(), 0);
+    EXPECT_FALSE(pm->can_execute(symbol_id, 100, 50.0));
 }
 
-TEST_F(PortfolioManagerTest, OnSignalExceedsOrderSizeLimit)
+TEST_F(PortfolioManagerTest, CanExecuteExceedsOrderSizeLimit)
 {
     uint32_t symbol_id = 0;
 
@@ -167,13 +84,10 @@ TEST_F(PortfolioManagerTest, OnSignalExceedsOrderSizeLimit)
     risk.max_notional_ = 100000.0;
     pm->set_risk_limit(symbol_id, risk);
 
-    pm->on_signal(symbol_id, 100, 50.0, 1000);
-
-    EXPECT_EQ(pm->get_order_count(), 0);
-    EXPECT_EQ(pm->get_reject_count(), 1);
+    EXPECT_FALSE(pm->can_execute(symbol_id, 100, 50.0));
 }
 
-TEST_F(PortfolioManagerTest, OnSignalExceedsNotionalLimit)
+TEST_F(PortfolioManagerTest, CanExecuteExceedsNotionalLimit)
 {
     uint32_t symbol_id = 0;
 
@@ -183,13 +97,10 @@ TEST_F(PortfolioManagerTest, OnSignalExceedsNotionalLimit)
     risk.max_notional_ = 1000.0; // Very low
     pm->set_risk_limit(symbol_id, risk);
 
-    pm->on_signal(symbol_id, 100, 50.0, 1000);
-
-    EXPECT_EQ(pm->get_order_count(), 0);
-    EXPECT_EQ(pm->get_reject_count(), 1);
+    EXPECT_FALSE(pm->can_execute(symbol_id, 100, 50.0));
 }
 
-TEST_F(PortfolioManagerTest, OnSignalInsufficientCash)
+TEST_F(PortfolioManagerTest, CanExecuteInsufficientCash)
 {
     uint32_t symbol_id = 0;
 
@@ -200,13 +111,10 @@ TEST_F(PortfolioManagerTest, OnSignalInsufficientCash)
     pm->set_risk_limit(symbol_id, risk);
 
     // Try to buy more than we have cash for
-    pm->on_signal(symbol_id, 100000, 50.0, 1000);
-
-    EXPECT_EQ(pm->get_order_count(), 0);
-    EXPECT_EQ(pm->get_reject_count(), 1);
+    EXPECT_FALSE(pm->can_execute(symbol_id, 100000, 50.0));
 }
 
-TEST_F(PortfolioManagerTest, OnSignalShortDoesNotRequireCash)
+TEST_F(PortfolioManagerTest, CanExecuteShortDoesNotRequireCash)
 {
     uint32_t symbol_id = 0;
 
@@ -217,10 +125,56 @@ TEST_F(PortfolioManagerTest, OnSignalShortDoesNotRequireCash)
     pm->set_risk_limit(symbol_id, risk);
 
     // Selling/shorting doesn't need cash
-    pm->on_signal(symbol_id, -100, 50.0, 1000);
+    EXPECT_TRUE(pm->can_execute(symbol_id, -100, 50.0));
+}
 
-    EXPECT_EQ(pm->get_order_count(), 1);
-    EXPECT_EQ(pm->get_reject_count(), 0);
+TEST_F(PortfolioManagerTest, CanExecuteAccountsForPending)
+{
+    uint32_t symbol_id = 0;
+
+    RiskLimits risk;
+    risk.max_positions_ = 150;
+    risk.max_order_size_ = 500;
+    risk.max_notional_ = 100000.0;
+    pm->set_risk_limit(symbol_id, risk);
+
+    // Add pending order
+    pm->add_pending(symbol_id, 100);
+
+    // Now try another order that would exceed limit with pending
+    EXPECT_FALSE(pm->can_execute(symbol_id, 100, 50.0)); // 100 + 100 > 150
+    EXPECT_TRUE(pm->can_execute(symbol_id, 50, 50.0));   // 100 + 50 = 150, OK
+}
+
+// add_pending Tests
+TEST_F(PortfolioManagerTest, AddPendingValidSymbol)
+{
+    uint32_t symbol_id = 0;
+    int32_t quantity = 100;
+
+    pm->add_pending(symbol_id, quantity);
+
+    const auto &pos = pm->get_position(symbol_id);
+    EXPECT_EQ(pos.pending_quantity_, quantity);
+}
+
+TEST_F(PortfolioManagerTest, AddPendingInvalidSymbol)
+{
+    EXPECT_THROW(
+        pm->add_pending(MAX_SYMBOLS, 100),
+        std::out_of_range);
+}
+
+TEST_F(PortfolioManagerTest, AddPendingMultipleTimes)
+{
+    uint32_t symbol_id = 0;
+
+    pm->add_pending(symbol_id, 100);
+    pm->add_pending(symbol_id, 50);
+    pm->add_pending(symbol_id, -30);
+
+    const auto &pos = pm->get_position(symbol_id);
+    EXPECT_EQ(pos.pending_quantity_, 120); // 100 + 50 - 30
 }
 
 // on_fill Tests
@@ -415,14 +369,8 @@ TEST_F(PortfolioManagerTest, OnFillPendingQuantityUpdate)
 {
     uint32_t symbol_id = 0;
 
-    RiskLimits risk;
-    risk.max_positions_ = 1000;
-    risk.max_order_size_ = 500;
-    risk.max_notional_ = 100000.0;
-    pm->set_risk_limit(symbol_id, risk);
-
-    // Send signal (increases pending)
-    pm->on_signal(symbol_id, 100, 50.0, 1000);
+    // Simulate execution engine flow: add pending, then fill
+    pm->add_pending(symbol_id, 100);
 
     const auto &pos_before = pm->get_position(symbol_id);
     EXPECT_EQ(pos_before.pending_quantity_, 100);
@@ -648,23 +596,6 @@ TEST_F(PortfolioManagerTest, GetTotalValueWithPositions)
     EXPECT_DOUBLE_EQ(pm->get_total_value(), expected);
 }
 
-TEST_F(PortfolioManagerTest, GetOrderCount)
-{
-    RiskLimits risk;
-    risk.max_positions_ = 1000;
-    risk.max_order_size_ = 500;
-    risk.max_notional_ = 100000.0;
-    pm->set_risk_limit(0, risk);
-
-    EXPECT_EQ(pm->get_order_count(), 0);
-
-    pm->on_signal(0, 100, 50.0, 1000);
-    EXPECT_EQ(pm->get_order_count(), 1);
-
-    pm->on_signal(0, 50, 50.0, 2000);
-    EXPECT_EQ(pm->get_order_count(), 2);
-}
-
 TEST_F(PortfolioManagerTest, GetFillCount)
 {
     EXPECT_EQ(pm->get_fill_count(), 0);
@@ -674,21 +605,6 @@ TEST_F(PortfolioManagerTest, GetFillCount)
 
     pm->on_fill(1, 50, 100.0);
     EXPECT_EQ(pm->get_fill_count(), 2);
-}
-
-TEST_F(PortfolioManagerTest, GetRejectCount)
-{
-    RiskLimits risk;
-    risk.max_positions_ = 50;
-    risk.max_order_size_ = 500;
-    risk.max_notional_ = 100000.0;
-    pm->set_risk_limit(0, risk);
-
-    EXPECT_EQ(pm->get_reject_count(), 0);
-
-    // This should be rejected (exceeds position limit)
-    pm->on_signal(0, 100, 50.0, 1000);
-    EXPECT_EQ(pm->get_reject_count(), 1);
 }
 
 TEST_F(PortfolioManagerTest, SetAndGetRiskLimit)
@@ -758,7 +674,6 @@ TEST_F(PortfolioManagerTest, ComplexTradingScenario)
     pm->set_risk_limit(0, risk);
 
     // Day 1: Buy 100 @ 50
-    pm->on_signal(0, 100, 50.0, 1000);
     pm->on_fill(0, 100, 50.0);
     pm->on_market_data(0, 52.0);
 
@@ -766,7 +681,6 @@ TEST_F(PortfolioManagerTest, ComplexTradingScenario)
     EXPECT_DOUBLE_EQ(m1.unrealized_pnl_, 200.0);
 
     // Day 2: Add 100 @ 55
-    pm->on_signal(0, 100, 55.0, 2000);
     pm->on_fill(0, 100, 55.0);
     pm->on_market_data(0, 58.0);
 
@@ -775,7 +689,6 @@ TEST_F(PortfolioManagerTest, ComplexTradingScenario)
     EXPECT_DOUBLE_EQ(m2.unrealized_pnl_, 1100.0); // 200*(58-52.5)
 
     // Day 3: Sell 150 @ 60
-    pm->on_signal(0, -150, 60.0, 3000);
     pm->on_fill(0, -150, 60.0);
 
     auto m3 = pm->compute_metrics();
@@ -806,24 +719,6 @@ TEST_F(PortfolioManagerTest, MultipleSymbolsIndependent)
 
     auto metrics = pm->compute_metrics();
     EXPECT_EQ(metrics.num_positions_, 3);
-}
-
-TEST_F(PortfolioManagerTest, OrderIdIncremental)
-{
-    RiskLimits risk;
-    risk.max_positions_ = 1000;
-    risk.max_order_size_ = 500;
-    risk.max_notional_ = 100000.0;
-    pm->set_risk_limit(0, risk);
-
-    pm->on_signal(0, 100, 50.0, 1000);
-    pm->on_signal(0, 50, 50.0, 2000);
-    pm->on_signal(0, 25, 50.0, 3000);
-
-    EXPECT_EQ(bus.emitted_orders.size(), 3);
-    EXPECT_EQ(bus.emitted_orders[0].order_id, 1);
-    EXPECT_EQ(bus.emitted_orders[1].order_id, 2);
-    EXPECT_EQ(bus.emitted_orders[2].order_id, 3);
 }
 
 int main(int argc, char **argv)

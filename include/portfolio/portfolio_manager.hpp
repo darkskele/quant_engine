@@ -42,22 +42,20 @@ namespace engine::portfolio
     /**
      * @brief Manages positions, cash, P&L and basic risk checks for a fixed set of symbols.
      *
-     * @tparam EventBus Type providing an @c emit_order(...) interface.
      * @tparam MAX_SYMBOLS Maximum number of symbols tracked by this portfolio.
      */
-    template <typename EventBus, size_t MAX_SYMBOLS = 1024>
+    template <size_t MAX_SYMBOLS = 1024>
     class PortfolioManager
     {
     public:
         /**
          * @brief Construct a PortfolioManager with an event bus and initial capital.
          *
-         * @param bus Event bus used to publish orders.
          * @param initial_capital Initial cash balance for the portfolio.
          */
-        explicit PortfolioManager(EventBus &bus, double initial_capital)
-            : event_bus_(bus), cash_(initial_capital), initial_capital_(initial_capital),
-              total_realized_pnl_(0), order_count_(0), fill_count_(0), reject_count_(0), next_order_id(1)
+        explicit PortfolioManager(double initial_capital)
+            : cash_(initial_capital), initial_capital_(initial_capital),
+              total_realized_pnl_(0), fill_count_(0), next_order_id(1)
         {
             for (auto &symbol : symbol_data_)
             {
@@ -66,17 +64,17 @@ namespace engine::portfolio
         }
 
         /**
-         * @brief Handle a trading signal and attempt to create an order.
+         * @brief Fast pre trade risk check for a potential order.
+         *
+         * Validates order size, resulting position size, notional exposure and
+         * cash availability against configured risk limits for the symbol.
          *
          * @param symbol_id Integer ID of the symbol.
-         * @param quantity Signed order quantity (positive for buy, negative for sell).
-         * @param price Limit price for the order.
-         * @param timestamp_ns Timestamp of the signal in nanoseconds.
-         *
-         * @throws std::out_of_range If @p symbol_id is outside the valid range.
-         * @throws std::invalid_argument If @p price is invalid or @p quantity is zero.
+         * @param quantity Signed order quantity being requested.
+         * @param price Limit price of the order.
+         * @return true if the order passes all risk checks, false otherwise.
          */
-        void on_signal(const uint32_t symbol_id, const int32_t quantity, const double price, uint64_t timestamp_ns)
+        bool can_execute(const uint32_t symbol_id, const int32_t quantity, const double price) const
         {
             // Bounds check - programming error
             if (!is_valid_symbol(symbol_id)) [[unlikely]]
@@ -95,20 +93,24 @@ namespace engine::portfolio
                 throw std::invalid_argument("Quantity cannot be zero");
             }
 
-            // Risk Check
-            if (!can_execute(symbol_id, quantity, price))
-            {
-                ++reject_count_;
-                return;
-            }
+            // Fast risk check
+            const SymbolData &sym = symbol_data_[symbol_id];
+            const PositionState &pos = sym.pos;
+            const RiskLimits &risk = sym.risk;
 
-            // Update pending quantity
-            symbol_data_[symbol_id].pos.pending_quantity_ += quantity;
+            // Compute values upfront
+            int32_t abs_quantity = std::abs(quantity);
+            int32_t new_position = pos.quantity_ + pos.pending_quantity_ + quantity;
+            int32_t abs_new_position = std::abs(new_position);
+            double cost = quantity * price;
 
-            // Emit
-            uint64_t order_id = generate_order_id();
-            event_bus_.emit_order(order_id, symbol_id, quantity, price, timestamp_ns);
-            ++order_count_;
+            // Branchless comparisons
+            bool order_size_ok = abs_quantity <= risk.max_order_size_;
+            bool position_ok = abs_new_position <= risk.max_positions_;
+            bool notional_ok = (abs_new_position * price) <= risk.max_notional_;
+            bool cash_ok = (quantity <= 0) | (cost <= cash_);
+
+            return order_size_ok & position_ok & notional_ok & cash_ok;
         }
 
         /**
@@ -186,6 +188,31 @@ namespace engine::portfolio
             }
 
             symbol_data_[symbol_id].pos.last_price_ = last;
+        }
+
+        /**
+         * @brief Adds quantity to pending order prior to on_fill call.
+         *
+         * @param symbol_id Id of symbol to add pending to.
+         * @param quantity Quantity of pending order.
+         *
+         * @throws std::out_of_range If @p symbol_id is outside the valid range.
+         * @throws std::invalid_argument If @p quantity is zero.
+         */
+        void add_pending(const uint32_t symbol_id, const int32_t quantity)
+        {
+            // Bounds check - programming error
+            if (!is_valid_symbol(symbol_id)) [[unlikely]]
+            {
+                throw std::out_of_range("Invalid symbol_id: " + std::to_string(symbol_id));
+            }
+
+            if (quantity == 0) [[unlikely]]
+            {
+                throw std::invalid_argument("Quantity cannot be zero");
+            }
+
+            symbol_data_[symbol_id].pos.pending_quantity_ += quantity;
         }
 
         /**
@@ -300,16 +327,6 @@ namespace engine::portfolio
         }
 
         /**
-         * @brief Get the total number of orders emitted.
-         *
-         * @return Count of orders created via @c on_signal().
-         */
-        uint32_t get_order_count() const noexcept
-        {
-            return order_count_;
-        }
-
-        /**
          * @brief Get the total number of fills processed.
          *
          * @return Count of fills handled via @c on_fill().
@@ -317,16 +334,6 @@ namespace engine::portfolio
         uint32_t get_fill_count() const noexcept
         {
             return fill_count_;
-        }
-
-        /**
-         * @brief Get the number of rejected orders.
-         *
-         * @return Count of signals that failed risk checks.
-         */
-        uint32_t get_reject_count() const noexcept
-        {
-            return reject_count_;
         }
 
         /**
@@ -380,39 +387,6 @@ namespace engine::portfolio
 
     private:
         /**
-         * @brief Fast pre-trade risk check for a potential order.
-         *
-         * Validates order size, resulting position size, notional exposure and
-         * cash availability against configured risk limits for the symbol.
-         *
-         * @param symbol_id Integer ID of the symbol.
-         * @param quantity Signed order quantity being requested.
-         * @param price Limit price of the order.
-         * @return true if the order passes all risk checks, false otherwise.
-         */
-        bool can_execute(const uint32_t symbol_id, const int32_t quantity, const double price) const noexcept
-        {
-            // Fast risk check
-            const SymbolData &sym = symbol_data_[symbol_id];
-            const PositionState &pos = sym.pos;
-            const RiskLimits &risk = sym.risk;
-
-            // Compute values upfront
-            int32_t abs_quantity = std::abs(quantity);
-            int32_t new_position = pos.quantity_ + pos.pending_quantity_ + quantity;
-            int32_t abs_new_position = std::abs(new_position);
-            double cost = quantity * price;
-
-            // Branchless comparisons
-            bool order_size_ok = abs_quantity <= risk.max_order_size_;
-            bool position_ok = abs_new_position <= risk.max_positions_;
-            bool notional_ok = (abs_new_position * price) <= risk.max_notional_;
-            bool cash_ok = (quantity <= 0) | (cost <= cash_);
-
-            return order_size_ok & position_ok & notional_ok & cash_ok;
-        }
-
-        /**
          * @brief Update position state in response to a fill.
          *
          * Adjusts position quantity, average cost and realized P&L based on
@@ -452,18 +426,6 @@ namespace engine::portfolio
             total_realized_pnl_ += realized_pnl_delta;
             pos.average_cost_ = reversed ? price : (is_closing ? pos.average_cost_ : new_vwap);
             pos.quantity_ = new_qty;
-        }
-
-        /**
-         * @brief Generate a new unique order ID.
-         *
-         * Uses an atomic counter to produce monotonically increasing IDs.
-         *
-         * @return Newly generated order ID.
-         */
-        uint64_t generate_order_id() noexcept
-        {
-            return next_order_id.fetch_add(1, std::memory_order_relaxed);
         }
 
         /**
@@ -509,15 +471,12 @@ namespace engine::portfolio
             SymbolData() : pos(), risk() {}
         };
 
-        EventBus &event_bus_;                                         ///< Event bus used to emit orders.
         alignas(64) std::array<SymbolData, MAX_SYMBOLS> symbol_data_; ///< Per symbol position and risk .
         std::bitset<MAX_SYMBOLS> active_positions_;                   ///< Bitset indicating which symbols currently have a non zero position..
         double cash_;                                                 ///< Current cash balance.
         double initial_capital_;                                      ///< Initial capital used to seed the portfolio.
         double total_realized_pnl_;                                   ///< Accumulated realized PNL.
-        uint64_t order_count_;                                        ///< Number of orders emitted.
         uint64_t fill_count_;                                         ///< Number of fills processed.
-        uint64_t reject_count_;                                       ///< Number of orders rejected by risk checks.
         std::atomic<uint64_t> next_order_id;                          ///< Atomic unique order ID.
     };
 

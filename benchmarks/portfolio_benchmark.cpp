@@ -4,21 +4,10 @@
 
 using namespace engine::portfolio;
 
-class MockEventBus
+// Hot path, can_execute
+static void BM_CanExecute(benchmark::State &state)
 {
-public:
-    // Minimal implementation
-    void emit_order(uint64_t, uint32_t, int32_t,
-                    double, uint64_t)
-    {
-    }
-};
-
-// Hot path, on_signal
-static void BM_OnSignal(benchmark::State &state)
-{
-    MockEventBus bus;
-    PortfolioManager<MockEventBus, 1024> pm(bus, 1000000.0);
+    PortfolioManager<1024> pm(1000000.0);
 
     RiskLimits risk;
     risk.max_positions_ = 1000;
@@ -29,20 +18,19 @@ static void BM_OnSignal(benchmark::State &state)
     // Benchmark loop
     for (auto _ : state)
     {
-        pm.on_signal(0, 100, 50.0, 1000);
+        pm.can_execute(0, 100, 50.0);
         benchmark::DoNotOptimize(pm); // Prevent optimization
     }
 
     // Report latency in nanoseconds
     state.SetLabel("Hot path signal processing");
 }
-BENCHMARK(BM_OnSignal);
+BENCHMARK(BM_CanExecute);
 
 // Hot path,  on_fill
 static void BM_OnFill(benchmark::State &state)
 {
-    MockEventBus bus;
-    PortfolioManager<MockEventBus, 1024> pm(bus, 1000000.0);
+    PortfolioManager<1024> pm(1000000.0);
 
     for (auto _ : state)
     {
@@ -57,8 +45,7 @@ BENCHMARK(BM_OnFill);
 // Hot path, on_market_data
 static void BM_OnMarketData(benchmark::State &state)
 {
-    MockEventBus bus;
-    PortfolioManager<MockEventBus, 1024> pm(bus, 1000000.0);
+    PortfolioManager<1024> pm(1000000.0);
 
     for (auto _ : state)
     {
@@ -73,8 +60,7 @@ BENCHMARK(BM_OnMarketData);
 // Cold path, compute_metrics with varying active positions
 static void BM_ComputeMetrics_ActivePositions(benchmark::State &state)
 {
-    MockEventBus bus;
-    PortfolioManager<MockEventBus, 1024> pm(bus, 1000000.0);
+    PortfolioManager<1024> pm(1000000.0);
 
     // Create N active positions
     uint32_t num_positions = static_cast<uint32_t>(state.range(0));
@@ -98,8 +84,7 @@ BENCHMARK(BM_ComputeMetrics_ActivePositions)->Arg(10)->Arg(50)->Arg(100)->Arg(50
 // Realistic trading scenario - mixed operations
 static void BM_RealisticTradingLoop(benchmark::State &state)
 {
-    MockEventBus bus;
-    PortfolioManager<MockEventBus, 1024> pm(bus, 1000000.0);
+    PortfolioManager<1024> pm(1000000.0);
 
     RiskLimits risk;
     risk.max_positions_ = 1000;
@@ -116,7 +101,8 @@ static void BM_RealisticTradingLoop(benchmark::State &state)
     {
         // Typical loop, market data update, signal, fill
         pm.on_market_data(0, 50.0 + static_cast<double>(timestamp % 100) * 0.01);
-        pm.on_signal(0, 100, 50.0, timestamp);
+        pm.can_execute(0, 100, 50.0);
+        pm.add_pending(0, 100);
         pm.on_fill(0, 100, 50.0);
 
         timestamp++;
@@ -130,8 +116,7 @@ BENCHMARK(BM_RealisticTradingLoop);
 // Cache effects, test locality with scattered vs contiguous symbols
 static void BM_ScatteredSymbols(benchmark::State &state)
 {
-    MockEventBus bus;
-    PortfolioManager<MockEventBus, 1024> pm(bus, 1000000.0);
+    PortfolioManager<1024> pm(1000000.0);
 
     // Access symbols with large gaps (poor cache locality)
     for (auto _ : state)
@@ -148,8 +133,7 @@ BENCHMARK(BM_ScatteredSymbols);
 
 static void BM_ContiguousSymbols(benchmark::State &state)
 {
-    MockEventBus bus;
-    PortfolioManager<MockEventBus, 1024> pm(bus, 1000000.0);
+    PortfolioManager<1024> pm(1000000.0);
 
     // Access adjacent symbols (good cache locality)
     for (auto _ : state)
