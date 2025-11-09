@@ -5,18 +5,16 @@
 namespace engine::portfolio
 {
 
-    /**
-     * @brief Represents the state of a trading position for a single instrument.
-     *
-     * Tracks the current average entry price, cumulative realized profit and loss,
-     * and net quantity (long or short) of the position. Intended to be stored in a
-     * map keyed by instrument symbol.
-     */
-    struct position_state
+    struct alignas(64) PositionState
     {
-        double avg_price;    ///< Weighted average entry price of the open position.
-        double realized_pnl; ///< Realized profit or loss accumulated from closed trades.
-        int64_t quantity;    ///< Net quantity: positive for long, negative for short, zero if flat.
+        int32_t quantity_;         // Current position
+        int32_t pending_quantity_; // Orders in flight
+        double average_cost_;      // VWAP entry price
+        double realized_pnl_;      // Closed P&L
+        double last_price_;        // For mark to market
+
+        PositionState()
+            : quantity_(0), pending_quantity_(0), average_cost_(0.0), realized_pnl_(0.0), last_price_(0.0) {}
     };
 
 } // namespace engine::portfolio

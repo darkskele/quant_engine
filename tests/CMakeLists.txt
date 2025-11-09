@@ -1,15 +1,11 @@
 # Define test executable
 add_executable(engine_unit_tests
     test_portfolio.cpp
-    test_event_queue.cpp
-    test_engine_base.cpp
-    test_execution_engine_base.cpp
 )
 
 target_link_libraries(engine_unit_tests
     PRIVATE
         quant_engine
-        streamer
         GTest::gtest_main
 )
 

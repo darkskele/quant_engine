@@ -34,23 +34,32 @@ add_compile_options(
     -Wformat=2
 )
 
-# Engine library
-add_library(quant_engine
-    src/events/event_queue.cpp
-    src/orders/order_queue.cpp
-    src/portfolio/portfolio_manager.cpp
-)
+# Engine library (commented until we have .cpp files)
+# add_library(quant_engine
+#     src/portfolio/portfolio_manager.cpp
+# )
+# 
+# target_include_directories(quant_engine
+#     PUBLIC
+#         ${PROJECT_SOURCE_DIR}/include
+# )
+# 
+# target_link_libraries(quant_engine
+#     PUBLIC
+#         streamer
+# )
+
+# For now, create a header-only interface library
+add_library(quant_engine INTERFACE)
 
 target_include_directories(quant_engine
-    PUBLIC
+    INTERFACE
         ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(quant_engine
-    PUBLIC
-        streamer
-)
+find_package(GTest CONFIG REQUIRED) 
 
 # Enable tests
 enable_testing()
 add_subdirectory(tests)
+add_subdirectory(benchmarks)
